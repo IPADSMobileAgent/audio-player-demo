@@ -1,0 +1,27 @@
+{
+  "devices": {
+    "general": [
+      "default"
+    ]
+  },
+  "production": {
+    "removedSysCaps": [
+      "SystemCapability.Customization.CustomConfig",
+      "SystemCapability.Security.CryptoFramework.Key",
+      "SystemCapability.Ability.AppExtension.PhotoEditorExtension",
+      "SystemCapability.Security.ScreenLockFileManager",
+      "SystemCapability.HiviewDFX.HiCollie",
+      "SystemCapability.Security.CryptoFramework.Key.AsymKey",
+      "SystemCapability.Security.CryptoFramework.Rand",
+      "SystemCapability.Security.CryptoFramework.KeyAgreement",
+      "SystemCapability.Security.CryptoFramework.Mac",
+      "SystemCapability.Security.CryptoFramework.Cipher",
+      "SystemCapability.Security.CryptoFramework.Key.SymKey",
+      "SystemCapability.Notification.NotificationSettings",
+      "SystemCapability.Security.CryptoFramework.Signature",
+      "SystemCapability.Security.CryptoFramework.MessageDigest",
+      "SystemCapability.Security.CryptoFramework.Kdf",
+      "SystemCapability.BundleManager.AppDomainVerify"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "src": [
+    "pages/PlayerHome",
+    "pages/HomePage"
+  ]
+}

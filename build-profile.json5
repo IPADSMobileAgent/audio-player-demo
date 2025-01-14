@@ -1,0 +1,49 @@
+{
+  "app": {
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compileSdkVersion": 13,
+        "compatibleSdkVersion": 13,
+        "runtimeOS": "OpenHarmony"
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "material": {
+          "certpath": "/Users/jolynefr/.ohos/config/openharmony/default_AudioPlayer_bcTIPRiZYtusV45U1NP3v0ZtvsbPaQEmxVnePPOmgw8=.cer",
+          "storePassword": "0000001BE3E4B2F94C76D9EF9DB3AC9519C63D83B6A8B71C02B10775FB469E77EAF6944DCA65995F43D6B4",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BA9DBC49DA53ED500FC79177B92E7F5A982BDBFF4097F10C711BE9027595D202C3D19E87EB6C1BA",
+          "profile": "/Users/jolynefr/.ohos/config/openharmony/default_AudioPlayer_bcTIPRiZYtusV45U1NP3v0ZtvsbPaQEmxVnePPOmgw8=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/jolynefr/.ohos/config/openharmony/default_AudioPlayer_bcTIPRiZYtusV45U1NP3v0ZtvsbPaQEmxVnePPOmgw8=.p12"
+        }
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
