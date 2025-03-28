@@ -36,48 +36,99 @@ struct PlayerHome {
       Text(`PlayerState: ${PlayerState[this.playerState]}`)
         .fontSize(35)
         .fontWeight(FontWeight.Bold)
-      Button('Discover the devices')
-        .width('60%')
-        .height('15%')
-        .onClick(() => {
-          Logger.info(TAG, 'Try to discover the devices');
-          Global.RemoteDeviceManager.startDiscover();
-        })
-      Button('Stop Discover')
-        .width('60%')
-        .height('15%')
-        .onClick(() => {
-          Global.RemoteDeviceManager.stopDiscover();
-        })
-      Button('Try StartAbility')
-        .width('60%')
-        .height('15%')
-        .onClick(() => {
-          let networkId = Global.RemoteDeviceManager.exportBoundList()[0].networkId;
-          Logger.info(TAG, 'Try to start ' + networkId);
-          (getContext(this) as common.UIAbilityContext).startAbility({
-            bundleName: 'com.demo.audioplayer',
-            abilityName: 'EntryAbility',
-            deviceId: networkId,
-            parameters: {
-              restoreInfo: Global.PlayerManager.exportRestoreInfo()
-            }
-          }).then(() => {
-            Logger.info(TAG, `startAbility finished`);
-          }).catch((err: BusinessError) => {
-            Logger.error(TAG, `Error starting, error: [${err.code}] ${err.message}`);
-          })
-        })
-      Button('Show Dialog')
-        .width('60%')
-        .height('15%')
-        .onClick(() => this.showDeviceDialog())
+        .margin({ top: 20 })
+
+      Column({ space: 20 }) {
+        Row({ space: 20 }) {
+          Button('Discover devices')
+            .width('40%')
+            .height(50)
+            .backgroundColor(0xffffff)
+            .borderRadius(12)
+            .fontColor(0x333333)
+            .fontSize(18)
+            .padding({ left: 10, right: 10 })
+            .onClick(() => {
+              Logger.info(TAG, 'Try to discover the devices');
+              Global.RemoteDeviceManager.startDiscover();
+            })
+
+          Button('Stop Discover')
+            .width('40%')
+            .height(50)
+            .backgroundColor(0xffffff)
+            .borderRadius(12)
+            .fontColor(0x333333)
+            .fontSize(18)
+            .padding({ left: 10, right: 10 })
+            .onClick(() => {
+              Global.RemoteDeviceManager.stopDiscover();
+            })
+        }
+        .justifyContent(FlexAlign.Center)
+        .margin({ top: 10 })
+
+        Row({ space: 20 }) {
+          Button('Try StartAbility')
+            .width('40%')
+            .height(50)
+            .backgroundColor(0xffffff)
+            .borderRadius(12)
+            .fontColor(0x333333)
+            .fontSize(18)
+            .padding({ left: 10, right: 10 })
+            .onClick(() => {
+              const networkId = Global.RemoteDeviceManager.exportBoundList()[0].networkId;
+              Logger.info(TAG, 'Try to start ' + networkId);
+              (getContext(this) as common.UIAbilityContext).startAbility({
+                bundleName: 'com.demo.audioplayer',
+                abilityName: 'EntryAbility',
+                deviceId: networkId,
+                parameters: {
+                  restoreInfo: Global.PlayerManager.exportRestoreInfo()
+                }
+              }).then(() => {
+                Logger.info(TAG, 'startAbility finished');
+              }).catch((err: BusinessError) => {
+                Logger.error(TAG, `Error starting, error: [${err.code}] ${err.message}`);
+              });
+            })
+
+          Button('Show Dialog')
+            .width('40%')
+            .height(50)
+            .backgroundColor(0xffffff)
+            .borderRadius(12)
+            .fontColor(0x333333)
+            .fontSize(18)
+            .padding({ left: 10, right: 10 })
+            .onClick(() => {
+              this.showDeviceDialog();
+            })
+        }
+        .justifyContent(FlexAlign.Center)
+        .margin({ bottom: 20 })
+      }
+      .backgroundColor(0xF2F2F2)
+      .borderRadius(12)
+      .padding({ top: 20, bottom: 20 })
+      .margin({ left: '5%', right: '5%' })
+
+
       SongList({ selectedIndex: $songIndex })
         .backgroundColor(0xE6E6E6)
+        .borderRadius(12)
+        .margin({ top: 10, bottom: 10 })
+
       ProgressBar({ current: $current, total: $total })
         .backgroundColor(0xE6E6E6)
+        .borderRadius(12)
+        .margin({ top: 10, bottom: 10 })
+
       ControlBar({ playerState: $playerState, selectedIndex: $songIndex })
         .backgroundColor(0xE6E6E6)
+        .borderRadius(12)
+        .margin({ top: 10, bottom: 10 })
     }
     .justifyContent(FlexAlign.SpaceAround)
     .alignItems(HorizontalAlign.Center)

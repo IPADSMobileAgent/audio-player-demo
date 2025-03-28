@@ -159,6 +159,7 @@ export class PlayerManager {
     this.parent.total = this.player.duration;
     /* update progress bar every second */
     this.timerId = setInterval(() => {
+      this.currentTime = this.player.currentTime;
       this.parent.current = this.player.currentTime;
     }, 1000);
   }

@@ -3,6 +3,7 @@ import { window } from '@kit.ArkUI';
 import Global from '../common/Global';
 import Logger from '../common/Logger';
 import { RemoteRestoreInfo } from '../common/Types';
+import {promptAction} from '@kit.ArkUI';
 
 const TAG: string = '[EntryAbility]';
 
@@ -26,6 +27,17 @@ export default class EntryAbility extends UIAbility {
       Global.RestoreInfo = want.parameters.restoreInfo as RemoteRestoreInfo;
       Global.RestoreInfo.shouldContinue = true;
       Logger.info(TAG, `Should continue to song index ${Global.RestoreInfo.playIndex}, time ${Global.RestoreInfo.currentTime}`);
+
+      promptAction.showDialog({
+        title: `Received message from another device`,
+        message: `Should continue to song index ${Global.RestoreInfo.playIndex}, time ${Global.RestoreInfo.currentTime / 1000}s`,
+        buttons: [
+          {
+            text: "OK",
+            color: '#000000'
+          }
+        ]
+      })
     }
   }
 

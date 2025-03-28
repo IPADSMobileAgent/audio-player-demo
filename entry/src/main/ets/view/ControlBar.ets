@@ -12,7 +12,7 @@ export struct ControlBar {
   switchStateButton(resource: Resource) {
     Image(resource)
       .width('15%')
-      .onClick(() => Global.PlayerManager.seek(0))
+      .onClick(() => this.switchPlayState())
   }
 
   build() {
@@ -27,6 +27,7 @@ export struct ControlBar {
       }
       Image($r('app.media.ic_next'))
         .width('15%')
+        .onClick(() => this.playNextSong())
     }
     .width('70%')
     .justifyContent(FlexAlign.SpaceAround)
@@ -42,6 +43,22 @@ export struct ControlBar {
     } else if (currentState === PlayerState.IDLE) {
       Global.PlayerManager.playIndex(this.selectedIndex);
     }
+  }
+  playNextSong() {
+    const totalSongs = Global.PlayerManager.playList.length
+    if (totalSongs === 0) {
+      return
+    }
+
+    let nextIndex = this.selectedIndex + 1
+
+    if (nextIndex >= totalSongs) {
+      nextIndex = 0
+    }
+
+    Global.PlayerManager.playIndex(nextIndex)
+
+    this.selectedIndex = nextIndex
   }
 
 }
