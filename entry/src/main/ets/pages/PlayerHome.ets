@@ -94,7 +94,7 @@ struct PlayerHome {
               });
             })
 
-          Button('Show Dialog')
+          Button('Device List')
             .width('40%')
             .height(50)
             .backgroundColor(0xffffff)
