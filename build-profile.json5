@@ -4,7 +4,8 @@
       {
         "name": "default",
         "signingConfig": "default",
-        "compileSdkVersion": 13,
+        "compileSdkVersion": 23,
+        "targetSdkVersion": 23,
         "compatibleSdkVersion": 13,
         "runtimeOS": "OpenHarmony"
       }
@@ -17,6 +18,20 @@
         "name": "release"
       }
     ],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "material": {
+          "certpath": "/Users/yhan/.ohos/config/openharmony/default_audio-player-demo_crEU5lkG8WlpCkWHPAP3v3cjFxE9bfOGMp3eGJIQMRk=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001AFAF48757725E3708F7924CCD39B09D48EC75F0C172E6D089561141EFBA6DE92C74C0BB18B862",
+          "profile": "/Users/yhan/.ohos/config/openharmony/default_audio-player-demo_crEU5lkG8WlpCkWHPAP3v3cjFxE9bfOGMp3eGJIQMRk=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/yhan/.ohos/config/openharmony/default_audio-player-demo_crEU5lkG8WlpCkWHPAP3v3cjFxE9bfOGMp3eGJIQMRk=.p12",
+          "storePassword": "0000001A26BDAA44534624414C806A4D15F130D5DA3D743786B779300F912B69F1F44B13F3DE0B20DDF7"
+        }
+      }
+    ]
   },
   "modules": [
     {

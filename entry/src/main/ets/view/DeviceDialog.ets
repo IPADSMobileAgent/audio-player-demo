@@ -9,15 +9,106 @@ const TAG: string = 'DeviceDialog';
 @CustomDialog
 export struct DeviceDialog {
   controller: CustomDialogController;
-  deviceList: Array<distributedDeviceManager.DeviceBasicInfo> = [];
+  @State deviceList: Array<distributedDeviceManager.DeviceBasicInfo> = [];
+  @State boundList: Array<distributedDeviceManager.DeviceBasicInfo> = [];
+  @State selectedDeviceId: string = '';
+  @State binding: boolean = false;
+  @State starting: boolean = false;
 
-  boundList: Array<distributedDeviceManager.DeviceBasicInfo> = [];
+  private active: boolean = false;
+  private deviceListListener: () => void = () => this.updateDeviceLists();
 
-  @State selectedIndex: number = -1;
+  aboutToAppear(): void {
+    this.active = true;
+    Global.RemoteDeviceManager.addDeviceListListener(this.deviceListListener);
+    this.updateDeviceLists();
+    try {
+      Global.RemoteDeviceManager.refreshBoundList();
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(TAG, `Refresh devices failed: [${error.code}] ${error.message}`);
+      this.showMessage(`Could not refresh devices: ${error.message}`);
+    }
+  }
 
-  selectedIndexChanged(newIndex: number) {
-    Logger.info("selectedIndex = " + newIndex);
-    this.selectedIndex = newIndex;
+  aboutToDisappear(): void {
+    this.active = false;
+    Global.RemoteDeviceManager.removeDeviceListListener(this.deviceListListener);
+  }
+
+  private updateDeviceLists(): void {
+    this.deviceList = Global.RemoteDeviceManager.exportDeviceList();
+    this.boundList = Global.RemoteDeviceManager.exportBoundList();
+    if (!this.deviceList.some((device) => device.deviceId === this.selectedDeviceId)) {
+      this.selectedDeviceId = '';
+    }
+  }
+
+  private selectDevice(deviceId: string): void {
+    if (!this.binding) {
+      this.selectedDeviceId = deviceId;
+      Logger.info(TAG, `Selected device: ${deviceId}`);
+    }
+  }
+
+  private showMessage(message: string): void {
+    this.getUIContext().getPromptAction().showToast({ message: message });
+  }
+
+  private async bindSelectedDevice(): Promise<void> {
+    if (this.binding) {
+      return;
+    }
+    if (this.selectedDeviceId.length === 0) {
+      this.showMessage('Select a device to bind first.');
+      return;
+    }
+    this.binding = true;
+    try {
+      await Global.RemoteDeviceManager.bindDevice(this.selectedDeviceId);
+      if (this.active) {
+        this.showMessage('Binding succeeded. The device will appear below when it is available.');
+      }
+    } catch (err) {
+      const error = err as Error;
+      const message = error.message || 'The system did not provide a binding failure description.';
+      Logger.error(TAG, `Bind device failed: ${message}`);
+      if (this.active) {
+        this.showMessage(`Binding failed: ${message}`);
+      }
+    } finally {
+      if (this.active) {
+        this.binding = false;
+      }
+    }
+  }
+
+  private async startRemoteAbility(deviceId: string): Promise<void> {
+    if (this.starting) {
+      return;
+    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext | undefined;
+    if (context === undefined) {
+      this.showMessage('The application is not ready. Try again.');
+      return;
+    }
+    this.starting = true;
+    try {
+      await Global.RemoteDeviceManager.startRemoteAbility(context, Global.PlayerManager.exportRestoreInfo(), deviceId);
+      if (this.active) {
+        this.showMessage('App started on the remote device.');
+      }
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(TAG, `Remote startup failed: [${error.code}] ${error.message}`);
+      if (this.active) {
+        this.showMessage(`Could not start the remote app: ${error.message}`);
+      }
+    } finally {
+      if (this.active) {
+        this.starting = false;
+      }
+    }
   }
 
   build() {
@@ -29,7 +120,7 @@ export struct DeviceDialog {
         .textAlign(TextAlign.Start)
         .fontWeight(600)
       List() {
-        ForEach(this.deviceList, (item: distributedDeviceManager.DeviceBasicInfo, index: number) => {
+        ForEach(this.deviceList, (item: distributedDeviceManager.DeviceBasicInfo) => {
           ListItem() {
             Flex({
               direction: FlexDirection.Row,
@@ -37,22 +128,25 @@ export struct DeviceDialog {
               alignItems: ItemAlign.Center
             }) {
               Text(item.deviceName).fontSize(16)
-              Radio({ value: '', group: 'radioGroup' })
+              Radio({ value: item.deviceId, group: 'deviceBindingGroup' })
                 .radioStyle({
                   checkedBackgroundColor: '#ff0d64fb'
                 })
                 .width('7%')
-                .checked(index === this.selectedIndex ? true : false)
+                .checked(item.deviceId === this.selectedDeviceId)
+                .onChange((checked: boolean) => {
+                  if (checked) {
+                    this.selectDevice(item.deviceId);
+                  }
+                })
             }
             .onClick(() => {
-              Logger.info(TAG, `Select device index = ${index}`);
-              if (index === this.selectedIndex)
-                return;
-              this.selectedIndexChanged(index);
+              this.selectDevice(item.deviceId);
             })
           }
-        })
+        }, (item: distributedDeviceManager.DeviceBasicInfo) => item.deviceId)
       }
+      .enabled(!this.binding)
       .margin({ top: 12 })
       .width('434px')
       .height('18%')
@@ -61,11 +155,10 @@ export struct DeviceDialog {
           .onClick(() => {
             this.controller.close();
           })
-        Button('Bind')
+        Button(this.binding ? 'Binding...' : 'Bind')
+          .enabled(!this.binding)
           .onClick(() => {
-            Logger.info(TAG, `Bind index ${this.selectedIndex}`);
-            if (this.selectedIndex != -1)
-              Global.RemoteDeviceManager.bindDevice(this.deviceList[this.selectedIndex].deviceId);
+            this.bindSelectedDevice();
           })
       }
       Text('Bound Devices')
@@ -75,7 +168,7 @@ export struct DeviceDialog {
         .textAlign(TextAlign.Start)
         .fontWeight(600)
       List() {
-        ForEach(this.boundList, (item: distributedDeviceManager.DeviceBasicInfo, index: number) => {
+        ForEach(this.boundList, (item: distributedDeviceManager.DeviceBasicInfo) => {
           ListItem() {
             Flex({
               direction: FlexDirection.Row,
@@ -83,31 +176,15 @@ export struct DeviceDialog {
               alignItems: ItemAlign.Center
             }) {
               Text(item.deviceName).fontSize(16)
-              Radio({ value: '', group: 'radioGroup' })
-                .radioStyle({
-                  checkedBackgroundColor: '#ff0d64fb'
+              Button('Start')
+                .enabled(!this.starting)
+                .onClick(() => {
+                  this.startRemoteAbility(item.deviceId);
                 })
-                .width('7%')
-                .checked(index === this.selectedIndex ? true : false)
             }
-            .height('10%')
-            .onClick(() => {
-              Logger.info(TAG, `Try to start ${item.deviceName}: ${item.networkId}`);
-              (getContext(this) as common.UIAbilityContext).startAbility({
-                bundleName: 'com.demo.audioplayer',
-                abilityName: 'EntryAbility',
-                deviceId: item.networkId,
-                parameters: {
-                  restoreInfo: Global.PlayerManager.exportRestoreInfo()
-                }
-              }).then(() => {
-                Logger.info(TAG, `startAbility finished`);
-              }).catch((err: BusinessError) => {
-                Logger.error(TAG, `Error starting, error: [${err.code}] ${err.message}`);
-              })
-            })
+            .padding({ top: 8, bottom: 8 })
           }
-        })
+        }, (item: distributedDeviceManager.DeviceBasicInfo) => item.deviceId)
       }
       .margin({ top: 12 })
       .width('434px')

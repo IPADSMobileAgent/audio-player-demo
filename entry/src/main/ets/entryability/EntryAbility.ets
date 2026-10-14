@@ -1,13 +1,15 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
-import { window } from '@kit.ArkUI';
+import { UIContext, window } from '@kit.ArkUI';
+import { BusinessError } from '@kit.BasicServicesKit';
 import Global from '../common/Global';
 import Logger from '../common/Logger';
 import { RemoteRestoreInfo } from '../common/Types';
-import {promptAction} from '@kit.ArkUI';
 
 const TAG: string = '[EntryAbility]';
 
 export default class EntryAbility extends UIAbility {
+  private uiContext: UIContext | undefined = undefined;
+  private pendingRestoreInfo: RemoteRestoreInfo | undefined = undefined;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
@@ -28,17 +30,30 @@ export default class EntryAbility extends UIAbility {
       Global.RestoreInfo.shouldContinue = true;
       Logger.info(TAG, `Should continue to song index ${Global.RestoreInfo.playIndex}, time ${Global.RestoreInfo.currentTime}`);
 
-      promptAction.showDialog({
-        title: `Received message from another device`,
-        message: `Should continue to song index ${Global.RestoreInfo.playIndex}, time ${Global.RestoreInfo.currentTime / 1000}s`,
-        buttons: [
-          {
-            text: "OK",
-            color: '#000000'
-          }
-        ]
-      })
+      // On a cold start, defer the dialog until the window has loaded its content.
+      this.pendingRestoreInfo = Global.RestoreInfo;
+      this.showRestoreDialog();
     }
+  }
+
+  private showRestoreDialog(): void {
+    if (this.uiContext === undefined || this.pendingRestoreInfo === undefined) {
+      return;
+    }
+    const restoreInfo = this.pendingRestoreInfo;
+    this.pendingRestoreInfo = undefined;
+    this.uiContext.getPromptAction().showDialog({
+      title: `Received message from another device`,
+      message: `Should continue to song index ${restoreInfo.playIndex}, time ${restoreInfo.currentTime / 1000}s`,
+      buttons: [
+        {
+          text: "OK",
+          color: '#000000'
+        }
+      ]
+    }).catch((err: BusinessError) => {
+      Logger.error(TAG, `Failed to show restore dialog: [${err.code}] ${err.message}`);
+    });
   }
 
   onContinue(wantParam: Record<string, Object>): AbilityConstant.OnContinueResult | Promise<AbilityConstant.OnContinueResult> {
@@ -61,11 +76,14 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       Logger.info(TAG, 'Succeeded in loading the content.');
+      this.uiContext = windowStage.getMainWindowSync().getUIContext();
+      this.showRestoreDialog();
     });
   }
 
   onWindowStageDestroy(): void {
     // Main window is destroyed, release UI related resources
+    this.uiContext = undefined;
     Logger.info(TAG, 'Ability onWindowStageDestroy');
   }
 

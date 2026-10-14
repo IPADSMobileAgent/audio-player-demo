@@ -1,5 +1,3 @@
-import common from '@ohos.app.ability.common';
-
 import { ProgressBar } from '../view/ProgressBar';
 import { SongList } from '../view/SongList';
 import { ControlBar } from '../view/ControlBar';
@@ -8,7 +6,7 @@ import { MUSIC_DATA } from '../common/MockSongs';
 import { Song, PlayerState, PlayMode } from '../common/Types';
 import Global from '../common/Global';
 import Logger from '../common/Logger';
-import { abilityAccessCtrl, Permissions, Want, wantConstant } from '@kit.AbilityKit';
+import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { media } from '@kit.MediaKit';
 
@@ -30,6 +28,8 @@ struct PlayerHome {
   @State total: number = 100;
 
   private dialogController?: CustomDialogController = undefined;
+  private requestingDevicePermission: boolean = false;
+  private startingRemoteAbility: boolean = false;
 
   build() {
     Column({ space: 20 }) {
@@ -49,8 +49,7 @@ struct PlayerHome {
             .fontSize(18)
             .padding({ left: 10, right: 10 })
             .onClick(() => {
-              Logger.info(TAG, 'Try to discover the devices');
-              Global.RemoteDeviceManager.startDiscover();
+              this.discoverDevices();
             })
 
           Button('Stop Discover')
@@ -62,7 +61,7 @@ struct PlayerHome {
             .fontSize(18)
             .padding({ left: 10, right: 10 })
             .onClick(() => {
-              Global.RemoteDeviceManager.stopDiscover();
+              this.stopDiscovering();
             })
         }
         .justifyContent(FlexAlign.Center)
@@ -78,20 +77,7 @@ struct PlayerHome {
             .fontSize(18)
             .padding({ left: 10, right: 10 })
             .onClick(() => {
-              const networkId = Global.RemoteDeviceManager.exportBoundList()[0].networkId;
-              Logger.info(TAG, 'Try to start ' + networkId);
-              (getContext(this) as common.UIAbilityContext).startAbility({
-                bundleName: 'com.demo.audioplayer',
-                abilityName: 'EntryAbility',
-                deviceId: networkId,
-                parameters: {
-                  restoreInfo: Global.PlayerManager.exportRestoreInfo()
-                }
-              }).then(() => {
-                Logger.info(TAG, 'startAbility finished');
-              }).catch((err: BusinessError) => {
-                Logger.error(TAG, `Error starting, error: [${err.code}] ${err.message}`);
-              });
+              this.startRemoteAbility();
             })
 
           Button('Device List')
@@ -144,16 +130,20 @@ struct PlayerHome {
   }
 
   aboutToAppear() {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext | undefined;
+    if (context === undefined) {
+      Logger.error(TAG, 'UIAbility context is unavailable');
+      return;
+    }
     // this.player.setPlayerCallback();
-    this.fillPlayList(getContext(this) as common.UIAbilityContext).then(() => {
+    this.fillPlayList(context).then(() => {
       Logger.info(TAG, 'PlayList is ready');
     });
-    this.requestPermissions(['ohos.permission.DISTRIBUTED_DATASYNC']);
-
-    Global.InitializeManagers(getContext(this));
+    Global.InitializeManagers(context);
 
     Global.PlayerManager.setPlayList(this.playList);
     Global.PlayerManager.setParent(this);
+    this.discoverDevices(false);
   }
 
   onPageShow() {
@@ -167,25 +157,95 @@ struct PlayerHome {
     }
   }
 
-  requestPermissions(permissions: Array<Permissions>) {
-    let atManager = abilityAccessCtrl.createAtManager();
-    atManager.requestPermissionsFromUser(getContext(this), permissions).then((result) => {
-      Logger.info(TAG, 'Grant permission success: ' + result);
-    }).catch((reason: BusinessError) => {
-      Logger.error(TAG, 'Grant permission error: ' + reason.message);
-    })
+  async requestPermissions(context: common.UIAbilityContext, permissions: Array<Permissions>): Promise<boolean> {
+    const atManager = abilityAccessCtrl.createAtManager();
+    const result = await atManager.requestPermissionsFromUser(context, permissions);
+    Logger.info(TAG, `Permission result: ${JSON.stringify(result)}`);
+    return result.authResults.length === permissions.length &&
+      result.authResults.every((status) => status === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED);
+  }
+
+  private showMessage(message: string): void {
+    this.getUIContext().getPromptAction().showToast({ message: message });
+  }
+
+  private async discoverDevices(showStatus: boolean = true): Promise<void> {
+    if (this.requestingDevicePermission) {
+      return;
+    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext | undefined;
+    if (context === undefined) {
+      this.showMessage('The application is not ready. Try again.');
+      return;
+    }
+    this.requestingDevicePermission = true;
+    try {
+      const manager = Global.RemoteDeviceManager;
+      if (!manager.isReady()) {
+        const granted = await this.requestPermissions(context, ['ohos.permission.DISTRIBUTED_DATASYNC']);
+        if (!granted) {
+          Logger.warn(TAG, 'Distributed data permission was not granted');
+          this.showMessage('Device discovery requires permission. Allow it and tap Discover devices again.');
+          return;
+        }
+        manager.initialize();
+      }
+      const started = manager.startDiscover();
+      if (showStatus) {
+        this.showMessage(started ? 'Discovering devices...' : 'Device discovery is already running.');
+      }
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(TAG, `Discover devices failed: [${error.code}] ${error.message}`);
+      this.showMessage(`Device discovery failed: ${error.message}`);
+    } finally {
+      this.requestingDevicePermission = false;
+    }
+  }
+
+  private stopDiscovering(): void {
+    try {
+      Global.RemoteDeviceManager.stopDiscover();
+      this.showMessage('Device discovery stopped.');
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(TAG, `Stop discovery failed: [${error.code}] ${error.message}`);
+      this.showMessage(`Could not stop discovery: ${error.message}`);
+    }
+  }
+
+  private async startRemoteAbility(): Promise<void> {
+    if (this.startingRemoteAbility) {
+      return;
+    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext | undefined;
+    if (context === undefined) {
+      this.showMessage('The application is not ready. Try again.');
+      return;
+    }
+    this.startingRemoteAbility = true;
+    try {
+      await Global.RemoteDeviceManager.startRemoteAbility(context, Global.PlayerManager.exportRestoreInfo());
+      this.showMessage('App started on the remote device.');
+    } catch (err) {
+      const error = err as BusinessError;
+      Logger.error(TAG, `Remote startup failed: [${error.code}] ${error.message}`);
+      this.showMessage(`Could not start the remote app: ${error.message}`);
+    } finally {
+      this.startingRemoteAbility = false;
+    }
   }
 
   showDeviceDialog() {
+    if (!Global.RemoteDeviceManager.isReady()) {
+      this.showMessage('Tap Discover devices and grant permission first.');
+      return;
+    }
     if (this.dialogController !== undefined) {
       this.dialogController.close();
     }
     this.dialogController = new CustomDialogController({
-      builder: DeviceDialog({
-        deviceList: Global.RemoteDeviceManager.exportDeviceList(),
-        boundList: Global.RemoteDeviceManager.exportBoundList(),
-        selectedIndex: -1
-      }),
+      builder: DeviceDialog({}),
       autoCancel: true
     })
     this.dialogController.open();
